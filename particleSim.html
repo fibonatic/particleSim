@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Gravity</title>
+<title>particleSim</title>
 <style>
 body {
     background: #000000;
@@ -18,7 +18,7 @@ table {
 </head>
 <body>
 <center>
-<h1>Partical Simulation</h1>
+<h1>Particles Simulation</h1>
 Zoom: <input type="text" id="scaleMultiplier">
 <input type="button" id="pause" value="Pause">
 <input type="button" id="play" value="Play">
@@ -40,7 +40,6 @@ var timeStep = 1e-3;			// Nummerical time step size, which passes each loop.
 var scaleFactor = 1;			// Multiplied by data in rendering to adjust zoom level.
 var path = true;  			// Draw path
 
-var playerId=1; 			// ID of Thing that is the player.
 var renderId=-1; 			// ID of Thing to put at center of frame.
 
 // Global variables:
@@ -103,7 +102,6 @@ function loop()
 		if (hyperRender) render("rgba( 0 , 0 , 0 , 0.3 )");
 		updatePosition();
 		debugOut();
-		playerOut();
 		if (hyperRender) render();
 	}
 	if (!hyperRender) render();
@@ -199,13 +197,6 @@ function render(color)
 		context.fillStyle = color ? color : objects[i].fill;
         context.fill();
     }
-}
-
-function playerOut()
-{
-    var out = '<table>' + objects[playerId].dataOut() + '<tr><td colspan="3">Total velocity: ' + objects[playerId].getVelocity() + 
-			  '</td><td colspan="5">Distance from origin: ' + objects[playerId].getOriginDistance() + '</td></tr></table>';
-    document.getElementById('playerStats').innerHTML = out;
 }
 
 function debugOut()
