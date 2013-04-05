@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Gravity</title>
+<style>
+body {
+    background: #000000;
+    color: #FFFFFF;
+}
+canvas {
+    border: 3px #FFFFFF solid;
+}
+table {
+    border: 1px #FFFFFF solid;
+    width: 100%;
+}
+</style>
+</head>
+<body>
+<center>
+<h1>Partical Simulation</h1>
+Zoom: <input type="text" id="scaleMultiplier">
+<input type="button" id="pause" value="Pause">
+<input type="button" id="play" value="Play">
+<div id="playerStats"></div>
+<canvas id="canvas" width="960" height="540"></canvas>
+<div id="debug"></div>
+</center>
+<script>
+
+var canvas = document.getElementById('canvas');
+var context = canvas.getContext('2d');
+var objects = new Array();
+
+// Simulation settings:
+var runSpeed = 1;   		// Nummber of milliseconds between each iteration.
+var hyperSpeed = 2; 		// How many times to run simulation per iteration.			WARNING: High values lead to lag.
+var hyperRender = true;		// True: render each iteration, False: render each loop. 	ONLY WORKS with hyperWarp on and at regular runSpeed (aka slower).
+var timeStep = 1e-3;			// Nummerical time step size, which passes each loop.
+var scaleFactor = 1;			// Multiplied by data in rendering to adjust zoom level.
+var path = true;  			// Draw path
+
+var playerId=1; 			// ID of Thing that is the player.
+var renderId=-1; 			// ID of Thing to put at center of frame.
+
+// Global variables:
+var G;
+var N;
+var scaleDefault = 1;
+var width = canvas.width;
+var height = canvas.height;
+var run;
+var running = true;
+var alpha = 0;
+
+// Main program:
+main();
+
+function main()
+{
+    particalSystem(); 				// Initialize begin conditions.
+	N = objects.length;				// This value is often calculated for loops, calculating it once should reduce the number of calculations.
+	
+	document.getElementById('scaleMultiplier').onchange = function() // Detecting entered value in zoom field.
+	{
+		var scaleMultiply = parseFloat(document.getElementById('scaleMultiplier').value);
+		if (!isNaN(scaleMultiply) && scaleMultiply > 0) // Checking if it is a (positive) number.
+		{
+			scaleFactor = scaleDefault * scaleMultiply; // Scale the default scale factor by entered value. 
+			context.clearRect(0, 0, width, height); 	// Clear canvas to remove old path ar old scale (I haven't been able to scale this as well).
+		}
+	};
+	
+	run = setInterval('loop()',runSpeed);
+	
+	document.getElementById('pause').onclick = function() // Detecting clicking on pause button.
+	{
+		if(running)
+		{
+			run = clearInterval(run); 				// Stop simulation.
+			running = false;
+		}
+	};
+	document.getElementById('play').onclick = function() // Detecting clicking on play button.
+	{
+		if(!running)
+			{
+				run = setInterval('loop()',runSpeed); // Restart simulation.
+				running = true;
+			}
+	};
+}
+
+// Functions:
+function loop()
+{
+    context.fillStyle = "rgba(0, 0, 0, 0.1)";
+	context.fillRect(0, 0, width, height);
+	if (!hyperRender) render("rgba( 0 , 0 , 0 , 0.3 )");
+	for (var i = 0; i < hyperSpeed; ++i)
+	{
+		collisionPhysics();
+		if (hyperRender) render("rgba( 0 , 0 , 0 , 0.3 )");
+		updatePosition();
+		debugOut();
+		playerOut();
+		if (hyperRender) render();
+	}
+	if (!hyperRender) render();
+}
+
+function Thing(m, x, y, Vx, Vy, radius, color)
+{
+    this.m = timeStep * timeStep * G * m; 	// Constant parameter of accelation.
+    this.rad = radius ? radius : Math.sqrt(m)/2; // Radius of object.
+    if (this.rad < 1) this.rad = 1;
+    this.x = x; 							// Position
+    this.y = y;
+    this.Vx = timeStep * Vx; 				// Scaled velocity with nummerical time step.
+    this.Vy = timeStep * Vy;
+  //this.rot=0; 							// Rotation
+    this.fill = color ? color : '#FFFFFF'; 	// Render color of object, when undefined it is set to white.
+    this.fixed = false; 					// If true it can not move, but does applies forces on other objects.
+    
+    this.getVelocity = function()
+    {
+        return Math.abs(this.Vx) + Math.abs(this.Vy);
+    }
+    
+    this.getOriginDistance = function()
+    {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+    
+    this.dataOut = function()
+    {
+        return '<tr><td>Mass: ' + this.m.toString() + '</td><td>Radius: ' + this.rad.toFixed(2) + '</td><td>X: ' + this.x.toFixed(2) + 
+			   '</td><td>Y: ' + this.y.toFixed(2) + '</td><td>Velocity X: ' + this.Vx.toFixed(2) + '</td><td>Velocity Y: ' + 
+			   this.Vy.toFixed(2) + '</td><td>Fill color: ' + this.fill + '</td><td>Fixed? ' + this.fixed.toString() + '</td></tr>';
+    }
+}
+
+function collisionPhysics()
+{
+    for (var i = 0; i < N - 1; ++i)
+    {
+        for (var j = i + 1; j < N; ++j)
+        {
+            var Dx = objects[j].x - objects[i].x;    // Difference in X direction between objects[i] and objects[j].
+            var Dy = objects[j].y - objects[i].y;    // Difference in Y direction between objects[i] and objects[j].
+            var D2 = Dx * Dx + Dy * Dy;              // Distance between objects[i] and objects[j] squared.
+			
+			if (D2 <= (objects[i].rad + objects[j].rad) * (objects[i].rad + objects[j].rad))										// Colision check could be inserted here, reusing D2.
+			{
+				var delta = 2 * (Dx * (objects[i].Vx - objects[j].Vx) + Dy * (objects[i].Vy - objects[j].Vy)) / (D2 * (objects[i].m + objects[j].m));
+				objects[i].Vx += -objects[i].m * delta * Dx;
+				objects[i].Vy += -objects[i].m * delta * Dy;
+				objects[j].Vx +=  objects[j].m * delta * Dx;
+				objects[j].Vy +=  objects[j].m * delta * Dy;
+			}
+        }
+    }
+}
+
+function updatePosition()
+{
+	for (var i = 0; i < N; ++i)
+	{
+		if (!objects[i].fixed)
+		{
+			if (objects[i].x > width  - objects[i].rad) objects[i].Vx = -Math.abs(objects[i].Vx);
+			if (objects[i].x < 0      + objects[i].rad) objects[i].Vx =  Math.abs(objects[i].Vx);
+			if (objects[i].y > height - objects[i].rad) objects[i].Vy = -Math.abs(objects[i].Vy);
+			if (objects[i].y < 0      + objects[i].rad) objects[i].Vy =  Math.abs(objects[i].Vy);
+			objects[i].x += objects[i].Vx; 		// Add scaled velocity to position.
+			objects[i].y += objects[i].Vy;
+		}
+	}
+}
+
+function render(color)
+{
+    if (!path) context.clearRect(0, 0, width, height);
+
+    for (var i = 0; i < N; ++i)
+    {
+        context.beginPath();
+        var radius = objects[i].rad * scaleFactor * scaleFactor;
+        if (radius < 0.5) radius = 0.5;
+		if (renderId == -1)
+		{
+			context.arc(objects[i].x * scaleFactor, objects[i].y * scaleFactor, radius, 0, 2 * Math.PI, false);
+		}
+		else
+		{
+			context.arc((objects[i].x - objects[renderId].x) * scaleFactor + canvas.clientWidth/2, 
+						(objects[i].y - objects[renderId].y) * scaleFactor + canvas.clientHeight/2, radius, 0, 2 * Math.PI, false);
+		}
+		context.fillStyle = color ? color : objects[i].fill;
+        context.fill();
+    }
+}
+
+function playerOut()
+{
+    var out = '<table>' + objects[playerId].dataOut() + '<tr><td colspan="3">Total velocity: ' + objects[playerId].getVelocity() + 
+			  '</td><td colspan="5">Distance from origin: ' + objects[playerId].getOriginDistance() + '</td></tr></table>';
+    document.getElementById('playerStats').innerHTML = out;
+}
+
+function debugOut()
+{
+    var out='<table>'
+    for (var i = 0; i < N; ++i)
+    {
+        var out = out + objects[i].dataOut();
+    }
+    document.getElementById('debug').innerHTML = out + '</table>';
+}
+
+// Initialization:
+function particalSystem()
+{
+	G = 1;
+	var v0 = 2e3;
+	var r = 3;
+	var Width = width - 2 * r;
+	var Height = height - 2 * r;
+	for (var i = 0; i < 100; ++i)
+	{
+		objects[i]  = new Thing(1, Math.random() * Width + r, Math.random() * Height + r, v0 * (Math.random() - 0.5), v0 * (Math.random() - 0.5), r,false);
+	}
+}
+
+</script>
+</body>
+</html>
