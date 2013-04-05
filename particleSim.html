@@ -85,7 +85,6 @@ function loop()
 		collisionPhysics();
 		if (hyperRender) render("rgba( 0 , 0 , 0 , 0.1 )");
 		updatePosition();
-		debugOut();
 		if (hyperRender) render();
 	}
 	if (!hyperRender) render();
@@ -162,16 +161,6 @@ function render(color)
 		context.fillStyle = color ? color : objects[i].fill;
         context.fill();
     }
-}
-
-function debugOut()
-{
-    var out='<table>'
-    for (var i = 0; i < N; ++i)
-    {
-        var out = out + objects[i].dataOut();
-    }
-    document.getElementById('debug').innerHTML = out + '</table>';
 }
 
 // Initialization:
