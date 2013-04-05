@@ -40,7 +40,6 @@ var path = true;  			// Draw path
 
 // Global variables:
 var N;
-var scaleDefault = 1;
 var width = canvas.width;
 var height = canvas.height;
 var run;
@@ -52,24 +51,24 @@ main();
 
 function main()
 {
-    particalSystem(); 				// Initialize begin conditions.
-	N = objects.length;				// This value is often calculated for loops, calculating it once should reduce the number of calculations.
-	
+    particalSystem(); 		// Initialize begin conditions.
+	N = objects.length;		// This value is often calculated for loops, calculating it once should reduce the number of calculations.
+
 	run = setInterval('loop()',runSpeed);
-	
-	document.getElementById('pause').onclick = function() // Detecting clicking on pause button.
+
+	document.getElementById('pause').onclick = function() 	// Detecting clicking on pause button.
 	{
 		if(running)
 		{
-			run = clearInterval(run); 				// Stop simulation.
+			run = clearInterval(run); 						// Stop simulation.
 			running = false;
 		}
 	};
-	document.getElementById('play').onclick = function() // Detecting clicking on play button.
+	document.getElementById('play').onclick = function() 	// Detecting clicking on play button.
 	{
 		if(!running)
 			{
-				run = setInterval('loop()',runSpeed); // Restart simulation.
+				run = setInterval('loop()',runSpeed); 		// Resume simulation.
 				running = true;
 			}
 	};
@@ -80,11 +79,11 @@ function loop()
 {
     context.fillStyle = "rgba(0, 0, 0, 0.1)";
 	context.fillRect(0, 0, width, height);
-	if (!hyperRender) render("rgba( 0 , 0 , 0 , 0.3 )");
+	if (!hyperRender) render("rgba( 0 , 0 , 0 , 0.1 )");
 	for (var i = 0; i < hyperSpeed; ++i)
 	{
 		collisionPhysics();
-		if (hyperRender) render("rgba( 0 , 0 , 0 , 0.3 )");
+		if (hyperRender) render("rgba( 0 , 0 , 0 , 0.1 )");
 		updatePosition();
 		debugOut();
 		if (hyperRender) render();
@@ -94,26 +93,15 @@ function loop()
 
 function Thing(m, x, y, Vx, Vy, radius, color)
 {
-    this.m = timeStep * timeStep * m; 			// Constant parameter of accelation.
+    this.m = timeStep * timeStep * m; 				// Constant parameter of accelation.
     this.rad = radius ? radius : Math.sqrt(m)/2; 	// Radius of object.
     if (this.rad < 1) this.rad = 1;
-    this.x = x; 					// Position
+    this.x = x; 									// Position
     this.y = y;
-    this.Vx = timeStep * Vx; 				// Scaled velocity with nummerical time step.
+    this.Vx = timeStep * Vx; 						// Scaled velocity with nummerical time step.
     this.Vy = timeStep * Vy;
-  //this.rot=0; 					// Rotation
-    this.fill = color ? color : '#FFFFFF'; 		// Render color of object, when undefined it is set to white.
-    this.fixed = false; 				// If true it can not move, but does applies forces on other objects.
-    
-    this.getVelocity = function()
-    {
-        return Math.abs(this.Vx) + Math.abs(this.Vy);
-    }
-    
-    this.getOriginDistance = function()
-    {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
-    }
+    this.fill = color ? color : 'white'; 			// Render color of object, when undefined it is set to white.
+    this.fixed = false; 							// If true it can not move, but does applies forces on other objects.
     
     this.dataOut = function()
     {
@@ -132,7 +120,7 @@ function collisionPhysics()
             var Dx = objects[j].x - objects[i].x;    // Difference in X direction between objects[i] and objects[j].
             var Dy = objects[j].y - objects[i].y;    // Difference in Y direction between objects[i] and objects[j].
             var D2 = Dx * Dx + Dy * Dy;              // Distance between objects[i] and objects[j] squared.
-			
+
 			if (D2 <= (objects[i].rad + objects[j].rad) * (objects[i].rad + objects[j].rad))										// Colision check could be inserted here, reusing D2.
 			{
 				var delta = 2 * (Dx * (objects[i].Vx - objects[j].Vx) + Dy * (objects[i].Vy - objects[j].Vy)) / (D2 * (objects[i].m + objects[j].m));
@@ -170,8 +158,8 @@ function render(color)
         context.beginPath();
         var radius = objects[i].rad;
         if (radius < 0.5) radius = 0.5;
-	context.arc(objects[i].x, objects[i].y, radius, 0, 2 * Math.PI, false);
-	context.fillStyle = color ? color : objects[i].fill;
+		context.arc(objects[i].x, objects[i].y, radius, 0, 2 * Math.PI, false);
+		context.fillStyle = color ? color : objects[i].fill;
         context.fill();
     }
 }
@@ -189,11 +177,11 @@ function debugOut()
 // Initialization:
 function particalSystem()
 {
-	var v0 = 2e3;
-	var r = 3;
+	var v0 = 3e3;
+	var r = 4;
 	var Width = width - 2 * r;
 	var Height = height - 2 * r;
-	for (var i = 0; i < 100; ++i)
+	for (var i = 0; i < 150; ++i)
 	{
 		objects[i]  = new Thing(1, Math.random() * Width + r, Math.random() * Height + r, v0 * (Math.random() - 0.5), v0 * (Math.random() - 0.5), r,false);
 	}
