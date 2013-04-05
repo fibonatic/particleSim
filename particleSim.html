@@ -19,7 +19,6 @@ table {
 <body>
 <center>
 <h1>Particles Simulation</h1>
-Zoom: <input type="text" id="scaleMultiplier">
 <input type="button" id="pause" value="Pause">
 <input type="button" id="play" value="Play">
 <div id="playerStats"></div>
@@ -37,10 +36,7 @@ var runSpeed = 1;   		// Nummber of milliseconds between each iteration.
 var hyperSpeed = 2; 		// How many times to run simulation per iteration.			WARNING: High values lead to lag.
 var hyperRender = true;		// True: render each iteration, False: render each loop. 	ONLY WORKS with hyperWarp on and at regular runSpeed (aka slower).
 var timeStep = 1e-3;			// Nummerical time step size, which passes each loop.
-var scaleFactor = 1;			// Multiplied by data in rendering to adjust zoom level.
 var path = true;  			// Draw path
-
-var renderId=-1; 			// ID of Thing to put at center of frame.
 
 // Global variables:
 var G;
@@ -59,16 +55,6 @@ function main()
 {
     particalSystem(); 				// Initialize begin conditions.
 	N = objects.length;				// This value is often calculated for loops, calculating it once should reduce the number of calculations.
-	
-	document.getElementById('scaleMultiplier').onchange = function() // Detecting entered value in zoom field.
-	{
-		var scaleMultiply = parseFloat(document.getElementById('scaleMultiplier').value);
-		if (!isNaN(scaleMultiply) && scaleMultiply > 0) // Checking if it is a (positive) number.
-		{
-			scaleFactor = scaleDefault * scaleMultiply; // Scale the default scale factor by entered value. 
-			context.clearRect(0, 0, width, height); 	// Clear canvas to remove old path ar old scale (I haven't been able to scale this as well).
-		}
-	};
 	
 	run = setInterval('loop()',runSpeed);
 	
@@ -183,17 +169,9 @@ function render(color)
     for (var i = 0; i < N; ++i)
     {
         context.beginPath();
-        var radius = objects[i].rad * scaleFactor * scaleFactor;
+        var radius = objects[i].rad;
         if (radius < 0.5) radius = 0.5;
-		if (renderId == -1)
-		{
-			context.arc(objects[i].x * scaleFactor, objects[i].y * scaleFactor, radius, 0, 2 * Math.PI, false);
-		}
-		else
-		{
-			context.arc((objects[i].x - objects[renderId].x) * scaleFactor + canvas.clientWidth/2, 
-						(objects[i].y - objects[renderId].y) * scaleFactor + canvas.clientHeight/2, radius, 0, 2 * Math.PI, false);
-		}
+	context.arc(objects[i].x, objects[i].y, radius, 0, 2 * Math.PI, false);
 		context.fillStyle = color ? color : objects[i].fill;
         context.fill();
     }
