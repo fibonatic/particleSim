@@ -33,10 +33,10 @@ var objects = new Array();
 
 // Simulation settings:
 var runSpeed = 1;   		// Nummber of milliseconds between each iteration.
-var hyperSpeed = 2; 		// How many times to run simulation per iteration.			WARNING: High values lead to lag.
+var hyperSpeed = 3; 		// How many times to run simulation per iteration.			WARNING: High values lead to lag.
 var hyperRender = true;		// True: render each iteration, False: render each loop. 	ONLY WORKS with hyperWarp on and at regular runSpeed (aka slower).
-var timeStep = 1e-3;			// Nummerical time step size, which passes each loop.
-var path = true;  			// Draw path
+var timeStep = 3e-4;			// Nummerical time step size, which passes each loop.
+var path = false;  			// Draw path
 
 // Global variables:
 var N;
@@ -50,7 +50,7 @@ main();
 
 function main()
 {
-    particalSystem(); 		// Initialize begin conditions.
+    cadleSystem(); 		// Initialize begin conditions.
 	N = objects.length;		// This value is often calculated for loops, calculating it once should reduce the number of calculations.
 
 	run = setInterval('loop()',runSpeed);
@@ -76,8 +76,11 @@ function main()
 // Functions:
 function loop()
 {
-    context.fillStyle = "rgba(0, 0, 0, 0.1)";
-	context.fillRect(0, 0, width, height);
+    if (path) 
+	{
+		context.fillStyle = "rgba(0, 0, 0, 0.2)";
+		context.fillRect(0, 0, width, height);
+	}
 	if (!hyperRender) render("rgba( 0 , 0 , 0 , 0.1 )");
 	for (var i = 0; i < hyperSpeed; ++i)
 	{
@@ -87,25 +90,27 @@ function loop()
 		if (hyperRender) render();
 	}
 	if (!hyperRender) render();
+	debugOut();
 }
 
-function Thing(m, x, y, Vx, Vy, radius, color)
+function Thing(m, x, y, u, v, r, color)
 {
-    this.m = timeStep * timeStep * m; 				// Constant parameter of accelation.
-    this.rad = radius ? radius : Math.sqrt(m)/2; 	// Radius of object.
-    if (this.rad < 1) this.rad = 1;
+    this.m = m; 									// Constant parameter of accelation.
+    this.r = r ? r : Math.sqrt(m)/2; 				// Radius of object.
+    if (this.r < 1) this.r = 1;
     this.x = x; 									// Position
     this.y = y;
-    this.Vx = timeStep * Vx; 						// Scaled velocity with nummerical time step.
-    this.Vy = timeStep * Vy;
+    this.u = u; 									// Scaled velocity with nummerical time step.
+    this.v = v;
     this.fill = color ? color : 'white'; 			// Render color of object, when undefined it is set to white.
     this.fixed = false; 							// If true it can not move, but does applies forces on other objects.
+	this.col = false;
     
     this.dataOut = function()
     {
-        return '<tr><td>Mass: ' + this.m.toString() + '</td><td>Radius: ' + this.rad.toFixed(2) + '</td><td>X: ' + this.x.toFixed(2) + 
-			   '</td><td>Y: ' + this.y.toFixed(2) + '</td><td>Velocity X: ' + this.Vx.toFixed(2) + '</td><td>Velocity Y: ' + 
-			   this.Vy.toFixed(2) + '</td><td>Fill color: ' + this.fill + '</td><td>Fixed? ' + this.fixed.toString() + '</td></tr>';
+        return '<tr><td>Mass: ' + this.m.toString() + '</td><td>Radius: ' + this.r.toFixed(2) + '</td><td>X: ' + this.x.toFixed(2) + 
+			   '</td><td>Y: ' + this.y.toFixed(2) + '</td><td>Velocity X: ' + this.u.toFixed(2) + '</td><td>Velocity Y: ' + 
+			   this.v.toFixed(2) + '</td><td>Fill color: ' + this.fill + '</td><td>Fixed? ' + this.fixed.toString() + '</td></tr>';
     }
 }
 
@@ -115,35 +120,56 @@ function collisionPhysics()
     {
         for (var j = i + 1; j < N; ++j)
         {
-            var Dx = objects[j].x - objects[i].x;    // Difference in X direction between objects[i] and objects[j].
-            var Dy = objects[j].y - objects[i].y;    // Difference in Y direction between objects[i] and objects[j].
+            var Dx = objects[j].x - objects[i].x + timeStep * (objects[j].u - objects[i].u);
+            var Dy = objects[j].y - objects[i].y + timeStep * (objects[j].v - objects[i].v);
             var D2 = Dx * Dx + Dy * Dy;              // Distance between objects[i] and objects[j] squared.
 
-			if (D2 <= (objects[i].rad + objects[j].rad) * (objects[i].rad + objects[j].rad))										// Colision check could be inserted here, reusing D2.
+			if (D2 <= (objects[i].r + objects[j].r) * (objects[i].r + objects[j].r))	// Colision check could be inserted here, reusing D2.
 			{
-				var delta = 2 * (Dx * (objects[i].Vx - objects[j].Vx) + Dy * (objects[i].Vy - objects[j].Vy)) / (D2 * (objects[i].m + objects[j].m));
-				objects[i].Vx += -objects[i].m * delta * Dx;
-				objects[i].Vy += -objects[i].m * delta * Dy;
-				objects[j].Vx +=  objects[j].m * delta * Dx;
-				objects[j].Vy +=  objects[j].m * delta * Dy;
+				objects[i].col = true;
+				objects[j].col = true;
+				var dx = objects[j].x - objects[i].x;
+				var dy = objects[j].y - objects[i].y;
+				var du = objects[j].u - objects[i].u;
+				var dv = objects[j].v - objects[i].v;
+				var dr = objects[j].r + objects[i].r;
+				var dt = (-Math.sqrt(2 * dx * du * dy * dv - du * du * (dy * dy - dr * dr) - dv * dv * (dx * dx - dr * dr)) - dx * du - dy * dv) / (du * du + dv * dv);
+				Dx = objects[j].x - objects[i].x + dt * (objects[j].u - objects[i].u);
+				Dy = objects[j].y - objects[i].y + dt * (objects[j].v - objects[i].v);
+				D2 = Dx * Dx + Dy * Dy;
+				var delta = 2 * (Dx * (objects[i].u - objects[j].u) + Dy * (objects[i].v - objects[j].v)) / (D2 * (objects[i].m + objects[j].m));
+				objects[i].u += -objects[i].m * delta * Dx;
+				objects[i].v += -objects[i].m * delta * Dy;
+				objects[j].u +=  objects[j].m * delta * Dx;
+				objects[j].v +=  objects[j].m * delta * Dy;
+				objects[i].x += (timeStep - dt) * objects[i].u;
+				objects[i].y += (timeStep - dt) * objects[i].v; 
+				objects[j].x += (timeStep - dt) * objects[j].u;
+				objects[j].y += (timeStep - dt) * objects[j].v;
 			}
         }
     }
+}
+
+function wallBounce(i)
+{
+	if (objects[i].x > width  - objects[i].r) objects[i].u = -Math.abs(objects[i].u);
+	if (objects[i].x < 0      + objects[i].r) objects[i].u =  Math.abs(objects[i].u);
+	if (objects[i].y > height - objects[i].r) objects[i].v = -Math.abs(objects[i].v);
+	if (objects[i].y < 0      + objects[i].r) objects[i].v =  Math.abs(objects[i].v);
 }
 
 function updatePosition()
 {
 	for (var i = 0; i < N; ++i)
 	{
-		if (!objects[i].fixed)
+		if (!objects[i].fixed || !objects[i].col)
 		{
-			if (objects[i].x > width  - objects[i].rad) objects[i].Vx = -Math.abs(objects[i].Vx);
-			if (objects[i].x < 0      + objects[i].rad) objects[i].Vx =  Math.abs(objects[i].Vx);
-			if (objects[i].y > height - objects[i].rad) objects[i].Vy = -Math.abs(objects[i].Vy);
-			if (objects[i].y < 0      + objects[i].rad) objects[i].Vy =  Math.abs(objects[i].Vy);
-			objects[i].x += objects[i].Vx; 		// Add scaled velocity to position.
-			objects[i].y += objects[i].Vy;
+			wallBounce(i);
+			objects[i].x += timeStep * objects[i].u; 		// Add scaled velocity to position.
+			objects[i].y += timeStep * objects[i].v;
 		}
+		if (objects[i].col) objects[i].col = false;
 	}
 }
 
@@ -154,7 +180,7 @@ function render(color)
     for (var i = 0; i < N; ++i)
     {
         context.beginPath();
-        var radius = objects[i].rad;
+        var radius = objects[i].r;
         if (radius < 0.5) radius = 0.5;
 		context.arc(objects[i].x, objects[i].y, radius, 0, 2 * Math.PI, false);
 		context.fillStyle = color ? color : objects[i].fill;
@@ -162,17 +188,39 @@ function render(color)
     }
 }
 
+function debugOut()
+{
+    var out='<table>'
+    for (var i = 0; i < N; ++i)
+    {
+        var out = out + objects[i].dataOut();
+    }
+    document.getElementById('debug').innerHTML = out + '</table>';
+}
+
 // Initialization:
 function particalSystem()
 {
-	var v0 = 3e3;
+	var v0 = 1e4;
 	var r = 4;
 	var Width = width - 2 * r;
 	var Height = height - 2 * r;
-	for (var i = 0; i < 150; ++i)
+	for (var i = 0; i < 500; ++i)
 	{
-		objects[i]  = new Thing(1, Math.random() * Width + r, Math.random() * Height + r, v0 * (Math.random() - 0.5), v0 * (Math.random() - 0.5), r,false);
+		objects[i]  = new Thing(1, Math.random() * Width + r, Math.random() * Height + r, v0 * (Math.random() - 0.5), v0 * (Math.random() - 0.5), r, false);
 	}
+}
+
+function cadleSystem()
+{
+	var v = 1e3;
+	var r = 10;
+	var d = 0.25 * height;
+	objects[0]  = new Thing(1, 0.50 * width - d, 0.50 * height, v, 0, r, "red");
+	objects[1]  = new Thing(1, 0.50 * width - d + 2.0001 * r, 0.50 * height, v, 0, r, "white");
+	objects[2]  = new Thing(1, 0.50 * width + 4.0002 * r, 0.50 * height, 0, 0, r, "green");
+	objects[3]  = new Thing(1, 0.50 * width + 2.0001 * r, 0.50 * height, 0, 0, r, "blue");
+	objects[4]  = new Thing(1, 0.50 * width, 0.50 * height, 0, 0, r, "yellow");
 }
 
 </script>
